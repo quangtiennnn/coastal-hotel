@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv add:*)",
+      "Bash(uv run python -c \":*)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

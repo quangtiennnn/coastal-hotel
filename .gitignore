@@ -1,0 +1,31 @@
+# Environment
+.env
+.venv/
+goorawling/.venv/
+
+# Scraper outputs
+goorawling/outputs/
+pre-scraping/outputs/
+pre-scraping/page_source.html
+pre-scraping/extracted_data.json
+topic-modeling/models/
+qdrant_storage/
+
+data/
+
+# Chrome profile (session data)
+pre-scraping/chrome_profile/
+goorawling/chrome_profile/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
