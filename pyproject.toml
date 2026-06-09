@@ -14,7 +14,6 @@ dependencies = [
     "pandas>=3.0.1",
     "playwright>=1.58.0",
     "pyvi>=0.1.1",
-    "qdrant-client>=1.9",
     "scikit-learn>=1.5",
     "sentence-transformers>=3.0",
     "spacy>=3.8.13",
@@ -24,4 +23,5 @@ dependencies = [
     "umap-learn>=0.5",
     "anthropic>=0.40.0",
     "python-dotenv>=1.0.0",
+    "duckdb>=1.5.3",
 ]

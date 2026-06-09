@@ -4,108 +4,108 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python-based Google Maps Local Guide review scraper and dataset for analyzing coastal hotel proximity. The project integrates web scraping, data preparation, and interactive UI analysis:
-- **Web scraping**: Async Playwright scraper to extract reviews from Google Maps contributor profiles
-- **Data pipeline**: CSV datasets with hotel metadata, geospatial distance calculations, and statistical filtering
-- **Interactive analysis**: Jupyter notebooks and Streamlit UI for data exploration and batch processing
+Python-based pipeline for scraping and analyzing Google Maps hotel reviews, focused on Vietnamese coastal hotels. The stack covers async Playwright scraping, NLP/topic modeling (BERTopic, spaCy, sentence-transformers), vector storage (Qdrant), and Claude API integration.
 
 ## Package Manager & Environment
 
-This project uses [`uv`](https://docs.astral.sh/uv/) for package management with Python 3.14.
+Uses [`uv`](https://docs.astral.sh/uv/) with Python 3.14.
 
 ```bash
-# Install dependencies
 uv sync
-
-# Install Playwright browsers (first-time setup)
-uv run playwright install chrome
+uv run playwright install chrome   # first-time browser setup
 ```
 
 ## Common Development Commands
 
-### Scraper CLI
 ```bash
-# Single URL scraping
-uv run python goorawling/gmaps_reviews_scraper.py "https://www.google.com/maps/contrib/100907397351319007420/reviews?hl=vi" --output output.json
+# Scrape reviews for a single Google Maps contributor profile
+uv run python goorawling/get-gmap-review.py "https://www.google.com/maps/contrib/<id>/reviews" --output output.json
 
 # With visible browser (debugging)
-uv run python goorawling/gmaps_reviews_scraper.py "<URL>" --no-headless --output output.json
-```
+uv run python goorawling/get-gmap-review.py "<URL>" --no-headless --output output.json
 
-### Interactive UI
-```bash
-# Run Streamlit batch processor
-uv run streamlit run goorawling/streamlit_app.py
-```
+# Batch-scrape reviews for all hotels in goorawling/hotels_processed.csv
+uv run python goorawling/run.py
 
-### Data Preparation
-```bash
-# Filter hotels by review count (IQR-based)
-uv run python data/prepare.py
-
-# Run data merge notebook (interactive)
-uv run jupyter notebook pre-scraping/data-prepare.ipynb
+# Batch-scrape hotel metadata from Google Maps search results
+uv run python pre-scraping/get-data.py   # reads data/hotel_filtered.csv
 ```
 
 ## Architecture
 
-### Scraper Module (`goorawling/`)
+```text
+coastal-hotel/
+├── scraping/               # all Playwright-based scrapers
+│   ├── get_reviews.py      # core scraper: GMapsReviewsScraper class
+│   ├── get_metadata.py     # hotel metadata scraper (5 concurrent tabs)
+│   ├── run.py              # batch runner over hotels_processed.csv
+│   ├── hotels_processed.csv
+│   └── chrome_profile/     # persistent Chrome session (gitignored)
+├── src/                    # reusable Python modules
+│   ├── preprocessor.py     # Preprocessor class (vi/en tokenization)
+│   └── topic_modeling.py   # BERTopic pipeline + Qdrant integration
+├── notebooks/              # numbered in pipeline order
+│   ├── 01_data_prepare.ipynb
+│   ├── 02_google_reviews_extracting.ipynb
+│   ├── 03_stay_detail.ipynb
+│   ├── 04_preprocess.ipynb
+│   ├── 05_agoda_prepare.ipynb
+│   ├── 06_googlemaps_prepare.ipynb
+│   ├── 07_merge_and_preprocess.ipynb
+│   ├── 08_topic_prepare.ipynb
+│   ├── 09_topic_implement.ipynb
+│   └── 10_topic_process.ipynb
+├── data/                   # gitignored — raw + processed data
+│   ├── raw/                # source CSVs (hotel.csv, distance2coast.csv, etc.)
+│   └── processed/          # cleaned outputs (final-reviews-en/vi.csv, etc.)
+├── qdrant_storage/         # local Qdrant DB — gitignored, regenerable
+├── pyproject.toml
+└── CLAUDE.md
+```
 
-**`gmaps_reviews_scraper.py`** — Core async scraper with 4-step pipeline:
-1. Launch persistent Chrome with stealth headers (`--disable-blink-features=AutomationControlled`)
-2. Spoof `navigator.webdriver` and wait for reviews container
-3. Scroll reviews panel to trigger lazy loading
-4. Click all "See More" buttons to expand truncated text
-5. Parse expanded HTML with BeautifulSoup into structured JSON
+### Scraper Module (`scraping/`)
+
+**`get_reviews.py`** — Core scraper; defines `GMapsReviewsScraper` class with a 4-step async pipeline:
+
+1. Open persistent Chrome (stealth: `--disable-blink-features=AutomationControlled`, spoofed `navigator.webdriver`), navigate to contributor profile, click Reviews tab, set sort order
+2. Scroll review panel for 60 seconds to trigger lazy-loading
+3. Click all `button.w8nwRe.kyuRq` ("See More") buttons, then capture full page HTML
+4. Parse HTML with BeautifulSoup: extracts `place_id`, rating, timestamp, review text, aspect ratings (Vietnamese: food/service/atmosphere), hotel responses, image URLs
+
+The class accepts an optional external `context` (shared browser session); when provided, it does not own the browser lifecycle. Always appends `hl=vi` to URLs if absent.
 
 Output schema:
+
 ```json
 {
   "metadata": { "source_url", "total_places", "total_reviews", "timestamp" },
-  "reviews_by_place": { "<place_id>": [ { "review_id", "rating", "timestamp", "text", "images", ... } ] }
+  "reviews_by_place": { "<place_id>": [ { "place_node", "edge_fields": { "metadata", "review_section", "image_urls" } } ] }
 }
 ```
 
-Supports Vietnamese aspect ratings (food, service, atmosphere) and contextual metadata (meal type, price range).
+Exceptions: `NoReviewsTab` (saves empty JSON, continues), `SorryPage` (closes tab, skips hotel).
 
-**`streamlit_app.py`** — Web UI wrapping the scraper. Accepts contributor URLs or IDs (one per line or file upload). Configurable: headless mode, browser channel (chrome/chromium/msedge), timeout. Outputs scraping results to `goorawling/outputs/`.
+**`run.py`** — Batch runner. Reads `scraping/hotels_processed.csv` (`hotel_id`, `hotel_name`, `hotel_link` columns), launches one shared persistent Chrome context, and calls `GMapsReviewsScraper` for each hotel sequentially. Skips hotels whose output file already exists. Saves per-hotel JSON to `scraping/outputs/hotel_{id}_reviews.json` and maintains `scraping/outputs/all_hotels_reviews.json` summary.
 
-**`chrome_profile/`** — Persistent browser profile directory maintaining cookies/login state. Do not delete between scraper runs if authenticated access required.
+**`get_metadata.py`** — Batch scraper for hotel metadata. Reads `data/hotel_filtered.csv`, searches each hotel on Google Maps, and parses HTML for: name, rating, review count, accommodation type, phone, address, facilities, price. Runs up to 5 concurrent tabs (semaphore).
 
-### Data Module (`data/`)
+### Source Module (`src/`)
 
-**`hotel.csv`** — 8,574 rows, 41 columns: hotel name, location (lat/lon), star rating, review counts, pricing (Vietnam-focused).
+**`preprocessor.py`** — `Preprocessor` class. Normalizes and word-segments review text by language: ViTokenizer for Vietnamese (joins compound words with underscores), spaCy for English. Operates on `df["review_text"]` + `df["language"]`, adds `processed_text` column.
 
-**`distance2coast.csv`** — 29,446 rows, 6 columns: hotel_id, coordinates (WKT format), distance to coastline in meters.
+**`topic_modeling.py`** — Full BERTopic pipeline: loads reviews, encodes with `paraphrase-multilingual-mpnet-base-v2`, stores vectors in Qdrant, runs BERTopic with UMAP + HDBSCAN + KeyBERT representation.
 
-**`prepare.py`** — Filters hotels by review count using IQR statistics:
-- Loads `hotel.csv`
-- Calculates Q1, Q3, IQR on `number_of_reviews`
-- Filters: `number_of_reviews > Q3 + 1.5*IQR`
-- Outputs: `hotels_high_reviews.csv` (typically ~1,200 rows)
+### Key Dependencies
 
-### Data Preparation Module (`pre-scraping/`)
-
-**`data-prepare.ipynb`** — Merges `hotel.csv` with `distance2coast.csv` on `hotel_id`:
-- Deduplicates if `distance2coast.csv` has many-to-one relationships
-- Drops redundant columns (longitude/latitude)
-- Left join to preserve all hotels (8,574 rows)
-- Output: enriched dataset with distance-to-coast metrics
-
-**`get-data.py`** — Helper to scrape hotel metadata from Google Maps place pages (HTML extraction).
-
-**`hotel_review_analysis.py`** — Reusable class-based analyzer for IQR statistics and filtering (used by `data/prepare.py`).
-
-## Data Pipeline Workflow
-
-1. **Source data**: `hotel.csv` (metadata) + `distance2coast.csv` (geospatial)
-2. **Merge** (optional): Run `pre-scraping/data-prepare.ipynb` → `hotel_with_distance.csv`
-3. **Filter**: Run `data/prepare.py` → `hotels_high_reviews.csv` (high-engagement hotels only)
-4. **Scrape**: Use CLI or Streamlit UI to extract reviews from contributor profiles → JSON outputs
+- **BERTopic + UMAP + HDBSCAN** — topic modeling on review text
+- **sentence-transformers** — text embeddings
+- **spaCy + pyvi** — Vietnamese NLP tokenization
+- **qdrant-client** — vector database (local at `qdrant_storage/`)
+- **anthropic** — Claude API integration
 
 ## Scraper Fragility Notes
 
-- CSS selectors and DOM heuristics tightly coupled to Google Maps UI — frontend changes break parsing
-- Scraping Google Maps may violate Terms of Service — ensure proper authorization
-- Persistent chrome profile helps with session continuity but is not a guarantee against detection
-- Rendering delays handled with `wait_for_selector` timeouts; increase if pages load slowly on your network
+- CSS class selectors (`button.hh2c6[data-tab-index='2']`, `button.w8nwRe.kyuRq`, `div[data-review-id]`, etc.) are tightly coupled to Google Maps UI — any frontend update breaks parsing
+- Hardcoded to Chrome channel only (`channel="chrome"`); `playwright install chrome` is required
+- Sort dropdown label is hardcoded to Vietnamese: `aria-label='Phù hợp nhất'`
+- Google rate-limiting (`/sorry/index`): `get_reviews.py` skips the hotel; `get_metadata.py` waits 30 minutes then retries

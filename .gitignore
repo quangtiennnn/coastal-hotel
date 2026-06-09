@@ -1,21 +1,24 @@
 # Environment
 .env
 .venv/
-goorawling/.venv/
 
 # Scraper outputs
-goorawling/outputs/
-pre-scraping/outputs/
-pre-scraping/page_source.html
-pre-scraping/extracted_data.json
-topic-modeling/models/
-qdrant_storage/
+scraping/outputs/
+scraping/chrome_profile/
+scraping/page_source.html
 
+# ML artifacts (regenerable)
+qdrant_storage/
+*.npy
+topic-modeling/models/
+src/models/
+
+# Data (not tracked — too large / regenerable)
 data/
 
-# Chrome profile (session data)
-pre-scraping/chrome_profile/
-goorawling/chrome_profile/
+# Checkpoints (regenerable)
+checkpoints/*.pkl
+
 
 # Python
 __pycache__/

@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-Batch runner for get-gmap-review.py.
+Batch runner — scrapes all hotels in hotels_processed.csv.
 
-Reads hotels_processed.csv, iterates each hotel by hotel_id + hotel_link,
-runs the scraper, and saves results immediately after each hotel.
-
-Per-hotel output : goorawling/outputs/hotel_{hotel_id}_reviews.json
-Summary file     : goorawling/outputs/all_hotels_reviews.json
+Per-hotel output : scraping/outputs/hotel_{hotel_id}_reviews.json
+Summary file     : scraping/outputs/all_hotels_reviews.json
 """
 
 import asyncio
@@ -17,12 +14,11 @@ from pathlib import Path
 import pandas as pd
 from playwright.async_api import async_playwright
 
-# Import from hyphenated filename via importlib
 import importlib.util
 
 _spec = importlib.util.spec_from_file_location(
-    "get_gmap_review",
-    Path(__file__).parent / "get-gmap-review.py",
+    "get_reviews",
+    Path(__file__).parent / "get_reviews.py",
 )
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
