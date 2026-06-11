@@ -16,6 +16,9 @@ src/models/
 # Data (not tracked — too large / regenerable)
 data/
 
+# Images (regenerable)
+img/
+
 # Checkpoints (regenerable)
 checkpoints/*.pkl
 

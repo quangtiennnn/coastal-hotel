@@ -24,4 +24,5 @@ dependencies = [
     "anthropic>=0.40.0",
     "python-dotenv>=1.0.0",
     "duckdb>=1.5.3",
+    "wordcloud>=1.9.6",
 ]

@@ -207,7 +207,7 @@ def load_from_duckdb(
     finally:
         con.close()
 
-    docs = result["processed_text"].tolist()
+    docs = result["processed_text"].fillna("").astype(str).tolist()
     embeddings = np.stack(result["embedding"].tolist()).astype("float32")
     df = result.drop(columns=["embedding"])
 
@@ -224,17 +224,23 @@ def build_bertopic(
     min_cluster_size: int = 20,
     min_topic_size: int = 20,
     embedding_model: Optional[SentenceTransformer] = None,
+    language: str = "en",
 ) -> "BERTopic":
     """Assemble BERTopic with UMAP + HDBSCAN + KeyBERT + MMR representation.
+
+    Parameters
+    ----------
+    language : "en" or "vi"
+        Controls stopword list and CountVectorizer token pattern.
+        Vietnamese uses a pattern that preserves underscore-joined compound
+        tokens produced by ViTokenizer (e.g. ``khách_sạn``, ``phù_hợp``).
 
     Notes
     -----
     - ``calculate_probabilities=False`` and ``prediction_data=False`` are fixed.
-      Both flags load ``_prediction_utils.pyd`` on Windows, which is blocked by
-      AppControl policies.  Hard topic assignments are unaffected.
-    - Do NOT call ``topic_model.approximate_distribution()``,
-      ``hdbscan.approximate_predict()``, or any method that reads the probability
-      matrix — they all require the blocked DLL.
+      Both load ``_prediction_utils.pyd`` on Windows, blocked by AppControl.
+    - Do NOT call ``approximate_distribution()``, ``approximate_predict()``,
+      or any method reading the probability matrix — all require that DLL.
     """
     from bertopic import BERTopic
     from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
@@ -259,11 +265,21 @@ def build_bertopic(
         prediction_data=False,  # _prediction_utils.pyd — blocked by Windows AppControl
     )
 
+    if language == "vi":
+        # ViTokenizer joins compound words with underscores; token_pattern must
+        # not split on them.  Use vi-only stopwords to avoid suppressing valid
+        # English loanwords that appear in Vietnamese reviews.
+        stop_words = list(_iso_stopwords(["vi"]))
+        token_pattern = r"[\w_][\w_]+"
+    else:
+        stop_words = list(_iso_stopwords(["en"])) + EN_EXTRA_STOPWORDS
+        token_pattern = r"(?u)\b\w\w+\b"
+
     vectorizer_model = CountVectorizer(
-        stop_words=build_stopwords(),
+        stop_words=stop_words,
         min_df=2,
         ngram_range=(1, 2),
-        token_pattern=r"(?u)\b\w\w+\b",
+        token_pattern=token_pattern,
     )
 
     ctfidf_model = ClassTfidfTransformer()
@@ -283,11 +299,12 @@ def build_bertopic(
         representation_model=representation_model,
         min_topic_size=min_topic_size,
         nr_topics=nr_topics,
+        top_n_words=100,
         calculate_probabilities=False,  # _prediction_utils.pyd — blocked by Windows AppControl
         verbose=True,
     )
 
-    print("[build_bertopic] BERTopic configured.")
+    print(f"[build_bertopic] Configured for language='{language}'.")
     return topic_model
 
 
@@ -333,6 +350,7 @@ def run_pipeline(
         min_cluster_size=min_cluster_size,
         min_topic_size=min_topic_size,
         embedding_model=engine.model,
+        language=language or "en",
     )
     topics, _ = topic_model.fit_transform(docs, embeddings)
 
