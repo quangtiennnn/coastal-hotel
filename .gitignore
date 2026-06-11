@@ -19,6 +19,7 @@ data/
 # Images (regenerable)
 img/
 
+batches/
 # Checkpoints (regenerable)
 checkpoints/*.pkl
 
