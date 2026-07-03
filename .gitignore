@@ -12,6 +12,7 @@ qdrant_storage/
 *.npy
 topic-modeling/models/
 src/models/
+data-management/
 
 # Data (not tracked — too large / regenerable)
 data/

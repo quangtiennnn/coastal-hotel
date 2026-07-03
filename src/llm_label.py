@@ -1,11 +1,11 @@
 """
 llm_label.py
 ============
-Claude-assisted silver-labeling of BERTopic topics (PROPOSAL_COASTAL_TOPIC_ANALYSIS_V2).
+Claude-assisted silver-labeling of BERTopic topics.
 
 Maps each topic in TOPIC_LABELS onto a fixed 5-aspect taxonomy
 (facility / amenity / service / experience / loyalty) with 1-3 aspects per
-topic, each carrying its own sentiment, weight, and free-form sub_aspects.
+topic, each carrying its own sentiment, weight, and constrained sub_aspects.
 
 Model:     claude-sonnet-4-6 via the Anthropic Message Batches API (50% off)
 Output:    enforced JSON via output_config.format (json_schema)
@@ -55,54 +55,101 @@ def get_client():
 # Taxonomy + prompt
 # ===========================================================================
 
-KEY_ASPECTS: dict[str, str] = {
+# Descriptions used in the system prompt (semantic anchors for the LLM)
+TAXONOMY_DESCRIPTIONS: dict[str, str] = {
     "facility": (
-        "Facility, room, furnishings, bathroom, charging, reception area, "
-        "restaurant facilities, public equipment, gym, pool, elevator, bed, "
-        "mattress, water, electricity, configuration, home appliances, article, "
-        "supplies, utensils, decoration, air conditioner, infrastructure, "
-        "environment, sanitation, sound insulation, ventilation, natural lighting, "
-        "landscape, scenery, new, old, complete, antiquated, shabby, wet, dark, "
-        "dirty, sanitary, clean, tidy, leaky, warm, dusky, bright, moldy, fusty, "
-        "foul smelly, neat"
+        "Physical attributes of the room and building: room features, bathroom, "
+        "furniture, bedding, technical equipment, building infrastructure, "
+        "condition of facilities, cleanliness of physical spaces"
     ),
     "amenity": (
-        "Amenity, payment method, bill issued, location, transportation, safety, "
-        "security, lock, fire extinguisher, public service, spa, parking, traffic, "
-        "place, site, surrounding, vicinity, travel, subway, bus stop, business "
-        "district, city center, convenient, quick, well-suited"
+        "What the hotel provides access to beyond the room: location and "
+        "accessibility, transportation links, parking, safety and security, "
+        "payment and billing processes, public services, leisure amenities"
     ),
     "service": (
-        "Service, restaurant service, breakfast, food, beverage, staff, helpful, "
-        "friendly, care, room services, booking services, room appointment, "
-        "attitude, customer service, manager, front desk, proprietor, quality, "
-        "cleaning, reception, sweeping, make up, waiter, service quality, work "
-        "efficiency, passionate, caring, patiently, indifferent, considerate, "
-        "thoughtful, kind, observant, meticulous, cordial"
+        "Human-delivered service quality: staff attitude, front desk, room service, "
+        "booking service, housekeeping, restaurant service, food and breakfast "
+        "quality, service efficiency and speed"
     ),
     "experience": (
-        "Atmosphere, noisy, quiet, relaxing, fresh, elegant, lovely, view, "
-        "panorama, scenery, cultural, highlight, seaview, view, vision, "
-        "satisfaction, hype, fame, promise, deliver, unsatisfaction, over-rated, "
-        "overpriced, worth, value, price, fee, room rate, room price, "
-        "cost-performance, entirety, in short, hotel, apartment, expensive, cheap, "
-        "cost-effective, price increase, discount, concessional"
+        "Guest's subjective experience: atmosphere and ambiance, noise and quietness, "
+        "view and scenery, comfort and relaxation, overall satisfaction, "
+        "reputation vs expectation, perceived price-value"
     ),
     "loyalty": (
-        "Loyalty, revisit, back, recommend, suggest, again, stay away, never "
-        "again, once is enough, stay elsewhere"
+        "Guest intent signals: intention to revisit, intention to recommend, "
+        "intention to avoid"
     ),
 }
 
-VALID_ASPECTS = list(KEY_ASPECTS) + ["other"]
+# Fixed sub-aspect enum per aspect (user-defined)
+SUB_ASPECT_CHOICES: dict[str, list[str]] = {
+    "facility": [
+        "room_features",
+        "bathroom_facilities",
+        "furniture_bedding",
+        "technical_equipment",
+        "building_infrastructure",
+        "facility_condition",
+        "facility_cleanliness",
+    ],
+    "amenity": [
+        "coastal_access",
+        "local_convenience",
+        "transport_access",
+        "parking_facility",
+        "safety_security",
+        "payment_billing",
+        "public_services",
+        "leisure_facilities",
+    ],
+    "service": [
+        "staff_attitude",
+        "front_desk_service",
+        "room_service",
+        "booking_service",
+        "housekeeping_service",
+        "restaurant_service",
+        "food_breakfast",
+        "service_efficiency",
+    ],
+    "experience": [
+        "coastal_view",
+        "general_scenery",
+        "overall_atmosphere",
+        "noise_quietness",
+        "comfort_relaxation",
+        "overall_satisfaction",
+        "reputation_expectation",
+        "price_value",
+    ],
+    "loyalty": [
+        "revisit_intention",
+        "recommendation_intention",
+        "avoidance_intention",
+    ],
+}
 
-TAXONOMY_BLOCK = "\n".join(f"- {k}: {v}" for k, v in KEY_ASPECTS.items())
+VALID_ASPECTS = list(SUB_ASPECT_CHOICES) + ["other"]
+
+TAXONOMY_BLOCK = "\n".join(
+    f"- {k}: {v}" for k, v in TAXONOMY_DESCRIPTIONS.items()
+)
+
+ALL_SUB_ASPECTS: list[str] = sorted({
+    kw for kws in SUB_ASPECT_CHOICES.values() for kw in kws
+})
+
+_SUB_ASPECT_BLOCK = "\n".join(
+    f"  {aspect}: {', '.join(kws)}"
+    for aspect, kws in SUB_ASPECT_CHOICES.items()
+)
 
 SYSTEM_PROMPT = f"""You label hotel-review topics for a study of Vietnamese coastal hotels.
 Reviews are in Vietnamese or English; all labels you produce are English snake_case.
 
-Assign 1 to 3 aspects from this fixed taxonomy, ordered by dominance (most dominant
-first). The keyword lists are semantic anchors describing what each aspect covers:
+Assign 1 to 3 aspects from this fixed taxonomy, ordered by dominance (most dominant first):
 {TAXONOMY_BLOCK}
 
 Multi-aspect rules:
@@ -111,21 +158,23 @@ Multi-aspect rules:
 - Each aspect gets a weight in (0, 1]; weights across the topic MUST sum to 1.0.
   A single-aspect topic has one entry with weight 1.0.
 - Only add a 2nd or 3rd aspect when it is genuinely present in the cluster. Most
-  clean topic clusters are single-aspect - do not pad.
+  clean topic clusters are single-aspect — do not pad.
 
 Assignment guidance:
-- Physical things and their condition -> facility. People performing (or failing) work -> service.
-- Landscape/scenery as a physical property attribute -> facility; the felt impression,
-  seaview enjoyment, or value-for-money judgment -> experience.
-- Anything about price, worth, cost-performance -> experience.
-- Stated intent to return, recommend, or avoid -> include loyalty; if the cluster also
-  gives the reason (a facility/service issue), include that aspect too.
+- Room, bed, furniture, bathroom hardware, wifi, AC, TV, building structure -> facility.
+- Cleanliness and physical condition of spaces -> facility (sub: facility_cleanliness, facility_condition).
+- Location, transport links, parking, leisure pools/gym/spa -> amenity.
+- Staff, check-in, housekeeping, food quality, booking process -> service.
+- How the stay felt: atmosphere, view, noise, comfort, value perception -> experience.
+- Mentions of returning, recommending, or avoiding -> loyalty.
 - If nothing fits, use a single "other" aspect.
 
-Within each aspect, generate sub_aspects: 1 to 3 free-form, finer-grained sub-labels.
-Each sub_aspect MUST be 1-2 words, English, snake_case (e.g. "bed_comfort", "seaview",
-"staff_friendliness", "value_for_money", "will_return"). evidence_keywords are words
-from the topic vocabulary or excerpts supporting THAT aspect specifically."""
+For sub_aspects: choose 1 to 3 values per aspect ONLY from the allowed list below.
+Do NOT invent new sub_aspect strings.
+{_SUB_ASPECT_BLOCK}
+
+evidence_keywords are words from the topic vocabulary or excerpts supporting THAT
+aspect specifically."""
 
 ASPECT_SCHEMA = {
     "type": "object",
@@ -133,7 +182,10 @@ ASPECT_SCHEMA = {
         "key_aspect": {"type": "string", "enum": VALID_ASPECTS},
         "weight": {"type": "number"},
         "sentiment": {"type": "string", "enum": ["positive", "negative", "neutral"]},
-        "sub_aspects": {"type": "array", "items": {"type": "string"}},
+        "sub_aspects": {
+            "type": "array",
+            "items": {"type": "string", "enum": ALL_SUB_ASPECTS},
+        },
         "evidence_keywords": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["key_aspect", "weight", "sentiment", "sub_aspects", "evidence_keywords"],

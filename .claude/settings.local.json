@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run python -c \":*)"
+      "Bash(uv run python -c \":*)",
+      "PowerShell(uv run python _test_charts.py)",
+      "PowerShell(uv run python _test_comp.py)",
+      "PowerShell(uv run python _test_counts.py)",
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/llm_label_submit.py coast_band_A_en coast_band_A_vi coast_band_B_en coast_band_B_vi coast_band_C_en coast_band_C_vi)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/llm_label_submit.py coast_band_A_en coast_band_A_vi coast_band_B_en coast_band_B_vi coast_band_C_en coast_band_C_vi --force)",
+      "PowerShell(cd c:\\\\Users\\\\darkn\\\\coastal-hotel; $env:PYTHONIOENCODING=\"utf-8\"; uv run python src/llm_label_submit.py coast_band_A_en coast_band_A_vi coast_band_B_en coast_band_B_vi coast_band_C_en coast_band_C_vi --force)",
+      "PowerShell(cd c:\\\\Users\\\\darkn\\\\coastal-hotel; $env:PYTHONIOENCODING=\"utf-8\"; uv run python src/llm_label_submit.py --all)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 uv run python -)",
+      "Bash(PYTHONUTF8=1 uv run python -)",
+      "Bash(ls IMG/ img/)",
+      "Bash(find . -iname \"*ridge*\")"
     ]
   }
 }
