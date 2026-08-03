@@ -14,7 +14,14 @@
       "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 uv run python -)",
       "Bash(PYTHONUTF8=1 uv run python -)",
       "Bash(ls IMG/ img/)",
-      "Bash(find . -iname \"*ridge*\")"
+      "Bash(find . -iname \"*ridge*\")",
+      "Bash(xargs grep -ilE \"agoda\")",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_sample.py --dry-run)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_sample.py --dry-run --n 5000)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_gold.py)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_sample.py)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python \"C:\\\\Users\\\\darkn\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-darkn-coastal-hotel\\\\7fc7f267-bc53-48e0-8e37-dd7910c36c9e\\\\scratchpad\\\\smoke_test.py\")",
+      "Bash(PYTHONIOENCODING=utf-8 uv run jupyter nbconvert --to notebook --execute --inplace 23_absa_review_test.ipynb)"
     ]
   }
 }

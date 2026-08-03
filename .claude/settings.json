@@ -3,7 +3,31 @@
     "allow": [
       "Bash(uv add:*)",
       "Bash(uv run python -c \":*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_label_retrieve.py absa_label_train_aug.json)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --stats)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --arm baseline --epochs 3 --batch 32 --log-every 25)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --predict --arm baseline --partition dev --batch 64)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm baseline --partition dev)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm baseline --partition dev --detail)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --arm no_weights --epochs 3 --batch 32 --log-every 100)",
+      "PowerShell($p = Get-Process python -ErrorAction SilentlyContinue | Sort-Object CPU -Descending | Select-Object -First 1; if \\($p\\) { \"pid: \" + $p.Id; \"elapsed_min: \" + [math]::Round\\(\\(\\(Get-Date\\) - $p.StartTime\\).TotalMinutes,1\\); \"cpu_min: \" + [math]::Round\\($p.CPU/60,1\\); \"WS_GB: \" + [math]::Round\\($p.WS/1GB,2\\) } else { \"no python process running\" })",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --gmap-tag --arm baseline --n-gmap 2000 --batch 64)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --teacher-gap --arm baseline --batch 64)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --ablation --partition dev)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --predict --arm no_weights --partition dev --batch 64)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm no_weights --partition dev --detail)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --arm frozen --epochs 3 --batch 32 --log-every 200)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_augment.py --language en --target-sentences 4423 --dry-run)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_augment.py --language vi --target-sentences 6366 --subsample --dry-run)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_augment.py --language vi --target-sentences 6366 --subsample)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_augment.py --language en --target-sentences 4423)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_label_submit.py --name absa_label_train_aug_en)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_label_retrieve.py absa_label_train_aug_en.json)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --arm augmented --epochs 3 --batch 32 --log-every 200)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --predict --arm augmented --partition dev --batch 64)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm augmented --partition dev --detail)"
     ]
   }
 }

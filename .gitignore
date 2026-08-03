@@ -12,10 +12,13 @@ qdrant_storage/
 *.npy
 topic-modeling/models/
 src/models/
+models/
 data-management/
+markdown/
 
 # Data (not tracked — too large / regenerable)
 data/
+data-management/
 
 # Images (regenerable)
 img/
