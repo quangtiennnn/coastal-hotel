@@ -25,4 +25,29 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "duckdb>=1.5.3",
     "wordcloud>=1.9.6",
+    "torch>=2.9",
+    "en-core-web-sm",
 ]
+
+# torch is resolved PER PLATFORM, and the reason is Windows Smart App Control.
+#
+# SAC admits a binary if it is signed by a trusted publisher OR if that exact
+# file hash has enough cloud reputation. No PyTorch wheel is signed - verified:
+# torch_cpu.dll is NotSigned in both builds. But the two builds differ (265.8 MB
+# on PyPI vs 262.8 MB on download.pytorch.org), so they are different hashes with
+# different reputation. Measured on this machine: the PyPI wheel loads; the
+# cu130 wheel is blocked (CodeIntegrity 3033/3077, policy {0283ac0f-...}).
+#
+# So: Windows resolves from PyPI (CPU, loads under SAC), Linux/WSL resolves from
+# the CUDA index (GPU, outside Windows code integrity entirely). One manifest,
+# both environments, no security setting touched.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'linux'" }]
+# Declared so `uv sync` stops pruning it - preprocessor.py and topic_modeling.py
+# both spacy.load("en_core_web_sm"), and it was installed outside the manifest.
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }

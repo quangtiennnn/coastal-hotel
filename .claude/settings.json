@@ -27,7 +27,12 @@
       "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_label_retrieve.py absa_label_train_aug_en.json)",
       "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_train_b.py --arm augmented --epochs 3 --batch 32 --log-every 200)",
       "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --predict --arm augmented --partition dev --batch 64)",
-      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm augmented --partition dev --detail)"
+      "Bash(PYTHONIOENCODING=utf-8 uv run python src/absa_eval.py --report --arm augmented --partition dev --detail)",
+      "Bash(python -)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -u -)",
+      "Bash(grep -n \"cost\\\\|\\\\$\\\\|batch\\\\|token\" markdown/PROCESS_SENTENCES_LEVEL.md)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -c \"import torch;print\\('torch',torch.__version__\\);print\\('cuda',torch.cuda.is_available\\(\\)\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 timeout 900 uv run python src/absa_train_cascade.py --name smoke --max-train 1500 --max-eval 600 --epochs 1 --log-every 10)"
     ]
   }
 }

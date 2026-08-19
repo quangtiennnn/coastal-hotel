@@ -71,6 +71,10 @@ ARMS = {
     "augmented": (True,  True,  True),
     "no_weights": (False, False, True),
     "frozen":    (False, True,  False),
+    # The fourth cell of the weights x augmentation grid. Arms 2 and 3 each help
+    # on human gold independently (+0.033 and +0.050 over arm 1), so the most
+    # promising configuration was the only one never trained.
+    "aug_no_weights": (True, False, True),
 }
 
 
